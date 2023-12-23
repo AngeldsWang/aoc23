@@ -1,6 +1,5 @@
 use v5.32.1;
 use warnings;
-use DDP;
 
 open my $input, '<', "inputs/day_6.txt" or die "$!";
 
