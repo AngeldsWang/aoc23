@@ -1,7 +1,6 @@
 use v5.32.1;
 use warnings;
 use List::Util qw(sum);
-use DDP;
 
 open my $input, '<', "inputs/day_9.txt" or die "$!";
 
