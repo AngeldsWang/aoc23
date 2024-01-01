@@ -4,12 +4,11 @@ use List::Util qw(min max first);
 
 open my $input, '<', "inputs/day_23.txt" or die "$!";
 
-my ( @map, @visited );
+my @map;
 while ( my $line = <$input> ) {
     chomp $line;
 
-    push @map,     [ split //, $line ];
-    push @visited, [ (0) x length $line ];
+    push @map, [ split //, $line ];
 }
 
 close $input;
