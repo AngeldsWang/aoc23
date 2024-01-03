@@ -1,7 +1,8 @@
 use v5.32.1;
 use warnings;
-use List::Util qw(min max first);
 use Carp;
+use PDL;
+use PDL::LinearAlgebra;
 
 use constant {
     LOWER => 200000000000000,
@@ -64,7 +65,153 @@ while ( my ( $i, $hs ) = each @hailstones ) {
 
 say $sum;
 
-# part2;
+# part 2 newton method
+my @cases = map { [ $_->{x}, $_->{y}, $_->{z}, $_->{dx}, $_->{dy}, $_->{dz} ] }
+  @hailstones[ 0 .. 2 ];
+
+my $epsilon = 1e-5;
+my $x0      = pdl( 0, 0, 0, 1, 2, 3, 1, 2, 3 );
+my $x       = $x0;
+while (1) {
+    my $j     = __jacobian( $x, \@cases );
+    my $fn    = __fx( $x, \@cases );
+    my $delta = msolve( $j, $fn )->slice('(0),:');
+    $x += $delta;
+    last if ( sqrt( inner( $delta, $delta ) ) < $epsilon );
+}
+
+say $x->slice("0:2")->sum;
+
+sub __jacobian {
+    my ( $x, $cases ) = @_;
+
+    return pdl [
+        [ 1, 0, 0, $x->at(6), 0, 0, $x->at(3) - $cases->[0]->[3], 0, 0 ],
+        [ 0, 1, 0, 0, $x->at(6), 0, $x->at(4) - $cases->[0]->[4], 0, 0 ],
+        [ 0, 0, 1, 0, 0, $x->at(6), $x->at(5) - $cases->[0]->[5], 0, 0 ],
+        [ 1, 0, 0, $x->at(7), 0, 0, 0, $x->at(3) - $cases->[1]->[3], 0 ],
+        [ 0, 1, 0, 0, $x->at(7), 0, 0, $x->at(4) - $cases->[1]->[4], 0 ],
+        [ 0, 0, 1, 0, 0, $x->at(7), 0, $x->at(5) - $cases->[1]->[5], 0 ],
+        [ 1, 0, 0, $x->at(8), 0, 0, 0, 0, $x->at(3) - $cases->[2]->[3] ],
+        [ 0, 1, 0, 0, $x->at(8), 0, 0, 0, $x->at(4) - $cases->[2]->[4] ],
+        [ 0, 0, 1, 0, 0, $x->at(8), 0, 0, $x->at(5) - $cases->[2]->[5] ],
+    ];
+}
+
+sub __fx {
+    my ( $x, $cases ) = @_;
+
+    return pdl [
+        [
+            -1 * (
+                $x->at(0) +
+                  ( $x->at(3) - $cases->[0]->[3] ) * $x->at(6) -
+                  $cases->[0]->[0]
+            )
+        ],
+        [
+            -1 * (
+                $x->at(1) +
+                  ( $x->at(4) - $cases->[0]->[4] ) * $x->at(6) -
+                  $cases->[0]->[1]
+            )
+        ],
+        [
+            -1 * (
+                $x->at(2) +
+                  ( $x->at(5) - $cases->[0]->[5] ) * $x->at(6) -
+                  $cases->[0]->[2]
+            )
+        ],
+        [
+            -1 * (
+                $x->at(0) +
+                  ( $x->at(3) - $cases->[1]->[3] ) * $x->at(7) -
+                  $cases->[1]->[0]
+            )
+        ],
+        [
+            -1 * (
+                $x->at(1) +
+                  ( $x->at(4) - $cases->[1]->[4] ) * $x->at(7) -
+                  $cases->[1]->[1]
+            )
+        ],
+        [
+            -1 * (
+                $x->at(2) +
+                  ( $x->at(5) - $cases->[1]->[5] ) * $x->at(7) -
+                  $cases->[1]->[2]
+            )
+        ],
+        [
+            -1 * (
+                $x->at(0) +
+                  ( $x->at(3) - $cases->[2]->[3] ) * $x->at(8) -
+                  $cases->[2]->[0]
+            )
+        ],
+        [
+            -1 * (
+                $x->at(1) +
+                  ( $x->at(4) - $cases->[2]->[4] ) * $x->at(8) -
+                  $cases->[2]->[1]
+            )
+        ],
+        [
+            -1 * (
+                $x->at(2) +
+                  ( $x->at(5) - $cases->[2]->[5] ) * $x->at(8) -
+                  $cases->[2]->[2]
+            )
+        ],
+    ];
+}
+
+__END__
+
+=pod
+https://en.wikipedia.org/wiki/Newton%27s_method#Systems_of_equations
+
+rx + drx * t1 = x1 + dx1 * t1
+ry + dry * t1 = y1 + dy1 * t1
+rz + drz * t1 = z1 + dz1 * t1
+
+rx + drx * t2 = x2 + dx2 * t2
+ry + dry * t2 = y2 + dy2 * t2
+rz + drz * t2 = z2 + dz2 * t2
+
+rx + drx * t3 = x3 + dx3 * t3
+ry + dry * t3 = y3 + dy3 * t3
+rz + drz * t3 = z3 + dz3 * t3
+
+rx + (drx - dx1) * t1 - x1 = 0
+ry + (dry - dy1) * t1 - y1 = 0
+rz + (drz - dz1) * t1 - z1 = 0
+rx + (drx - dx2) * t2 - x2 = 0
+ry + (dry - dy2) * t2 - y2 = 0
+rz + (drz - dz2) * t2 - z2 = 0
+rx + (drx - dx3) * t3 - x3 = 0
+ry + (dry - dy3) * t3 - y3 = 0
+rz + (drz - dz3) * t3 - z3 = 0
+
+
+Jacobian(Xn):
+[1, 0, 0, t1, 0, 0, drx - dx1, 0, 0]
+[0, 1, 0, 0, t1, 0, dry - dy1, 0, 0]
+[0, 0, 1, 0, 0, t1, drz - dz1, 0, 0]
+[1, 0, 0, t2, 0, 0, 0, drx - dx2, 0]
+[0, 1, 0, 0, t2, 0, 0, dry - dy2, 0]
+[0, 0, 1, 0, 0, t2, 0, drz - dz2, 0]
+[1, 0, 0, t3, 0, 0, 0, 0, drx - dx3]
+[0, 1, 0, 0, t3, 0, 0, 0, dry - dy3]
+[0, 0, 1, 0, 0, t3, 0, 0, drz - dz3]
+
+Jacobian(Xn)(Xn+1 - Xn) = -F(Xn)
+
+=cut
+
+# part2 brute force;
 
 my ( $A, $B ) = ( $hailstones[0], $hailstones[1] );
 my $range = 300;
@@ -91,6 +238,7 @@ for my $drx ( -$range .. $range ) {
             my $rz = $A->{z} + $A->{dz} * $a - $drz * $a;
 
             my $all_hit = 1;
+            my $fail    = 0;
             for my $hs (@hailstones) {
                 my $b;
                 if ( $hs->{dx} - $drx != 0 ) {
@@ -103,7 +251,14 @@ for my $drx ( -$range .. $range ) {
                     $b = ( $rz - $hs->{z} ) / ( $hs->{dz} - $drz );
                 }
                 else {
-                    croak("impossible!");
+                    say sprintf(
+"rock starts on (%d, %d, %d), at the velocity of (%d, %d, %d), hailstone: (%d, %d, %d, %d, %d, %d),",
+                        $rx,      $ry,       $rz,       $drx,
+                        $dry,     $drz,      $hs->{x},  $hs->{y},
+                        $hs->{z}, $hs->{dx}, $hs->{dy}, $hs->{dz}
+                    );
+                    last;
+                    $fail = 1;
                 }
 
                 if (   ( $rx + $b * $drx != $hs->{x} + $b * $hs->{dx} )
@@ -113,6 +268,7 @@ for my $drx ( -$range .. $range ) {
                     $all_hit = 0;
                 }
             }
+            next if ($fail);
 
             if ($all_hit) {
                 say sprintf(
